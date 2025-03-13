@@ -9,7 +9,7 @@ import {
   ListRenderItemInfo,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { useNavigation, NavigationProp, StackActions } from "@react-navigation/native";
 import { ArrowLeft, Calendar, Search, Home as HomeIcon, Bell, User } from "react-native-feather";
 import { RootStackParamList } from "../App"; // Adjust the path if needed
 
@@ -77,7 +77,7 @@ const HistoryScreen = () => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("Home")}>
           <ArrowLeft width={24} height={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>History</Text>

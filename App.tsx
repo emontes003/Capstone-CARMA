@@ -40,7 +40,11 @@ export default function App() {
             headerShown: false,
           }}
         >
-          <Stack.Screen name="Home" component={HomeScreen} />
+          <Stack.Screen 
+            name="Home" 
+            component={HomeScreen} 
+            options={{ animation: "slide_from_left" }}  // Example animation option
+          />
           <Stack.Screen name="History" component={HistoryScreen} />
           <Stack.Screen name="Recordings" component={RecordingsScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />

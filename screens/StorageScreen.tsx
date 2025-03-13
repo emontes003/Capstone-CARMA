@@ -1,6 +1,6 @@
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
-import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { useNavigation, NavigationProp, StackActions } from "@react-navigation/native";
 import { ArrowLeft, HardDrive, Trash2, Home as HomeIcon, Bell, User } from "react-native-feather"
 import { RootStackParamList } from "../App"; // or from a types file if you've separated it
 
@@ -23,7 +23,7 @@ const StorageScreen = () => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => navigation.navigate("Home")}>
           <ArrowLeft width={24} height={24} color="#000" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Storage</Text>

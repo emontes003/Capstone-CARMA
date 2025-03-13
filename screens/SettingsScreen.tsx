@@ -7,7 +7,7 @@ import {
   SectionList,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
+import { useNavigation, NavigationProp, StackActions } from "@react-navigation/native";
 import {
   ArrowLeft,
   ChevronRight,
@@ -116,7 +116,7 @@ const SettingsScreen = () => {
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
-          onPress={() => navigation.goBack()}
+          onPress={() => navigation.navigate("Home")}
         >
           <ArrowLeft width={24} height={24} color="#000" />
         </TouchableOpacity>
