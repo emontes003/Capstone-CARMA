@@ -1,28 +1,41 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { View, Text, TouchableOpacity, StyleSheet, Image, Modal, FlatList, TextInput } from "react-native"
-import { SafeAreaView } from "react-native-safe-area-context"
+import { useState, useEffect } from "react";
+import { View, Text, TouchableOpacity, StyleSheet, Modal, FlatList } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
-import { ChevronDown, Home as HomeIcon, Bell, User } from "react-native-feather"
-import { RootStackParamList } from "../App"; // or from a types file if you've separated it
+import { ChevronDown, Home as HomeIcon, Bell, User } from "react-native-feather";
+import { RootStackParamList } from "../App";
+import Video from "react-native-video";
+import storage from "@react-native-firebase/storage";
 
 const HomeScreen = () => {
-  const navigation = useNavigation<NavigationProp<RootStackParamList>>()
-  const [selectedCamera, setSelectedCamera] = useState("Front View")
-  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const [selectedCamera, setSelectedCamera] = useState("Front View");
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [videoUrl, setVideoUrl] = useState<string>("");
 
-  const cameraOptions: string[] = ["Front View", "Back Right", "Back Left"]
+  const cameraOptions: string[] = ["Front View", "Back Right", "Back Left"];
 
-  const toggleDropdown = () => {
-    setDropdownOpen(!dropdownOpen)
-  }
+  const toggleDropdown = () => setDropdownOpen(!dropdownOpen);
 
-  // Change: type the "camera" parameter explicitly as string
   const selectCamera = (camera: string): void => {
-    setSelectedCamera(camera)
-    setDropdownOpen(false)
-  }
+    setSelectedCamera(camera);
+    setDropdownOpen(false);
+  };
+
+  useEffect(() => {
+    const fetchVideoUrl = async () => {
+      try {
+        const url = await storage().ref("videos/sample-video.mp4").getDownloadURL();
+        setVideoUrl(url);
+      } catch (error) {
+        console.error("Failed to fetch video URL:", error);
+      }
+    };
+
+    fetchVideoUrl();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -33,7 +46,6 @@ const HomeScreen = () => {
 
       {/* Main content */}
       <View style={styles.content}>
-        {/* Menu options */}
         <TouchableOpacity style={styles.menuButton} onPress={() => navigation.navigate("History")}>
           <Text style={styles.menuButtonText}>History</Text>
         </TouchableOpacity>
@@ -82,13 +94,19 @@ const HomeScreen = () => {
           </View>
         </View>
 
-        {/* Camera view */}
+        {/* Camera view (Video player) */}
         <View style={styles.cameraView}>
-          <Image
-            source={{ uri: `https://via.placeholder.com/400x300?text=${selectedCamera}` }}
-            style={styles.cameraImage}
-            resizeMode="cover"
-          />
+          {videoUrl ? (
+            <Video
+              source={{ uri: videoUrl }}
+              style={styles.cameraImage}
+              controls={true}
+              resizeMode="cover"
+              paused={false}
+            />
+          ) : (
+            <Text>Loading video...</Text>
+          )}
         </View>
       </View>
 
@@ -110,26 +128,14 @@ const HomeScreen = () => {
         </TouchableOpacity>
       </View>
     </SafeAreaView>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-  },
-  header: {
-    paddingVertical: 24,
-    alignItems: "center",
-  },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 16,
-  },
+  container: { flex: 1, backgroundColor: "#fff" },
+  header: { paddingVertical: 24, alignItems: "center" },
+  headerTitle: { fontSize: 24, fontWeight: "bold" },
+  content: { flex: 1, paddingHorizontal: 16 },
   menuButton: {
     paddingVertical: 16,
     paddingHorizontal: 16,
@@ -139,22 +145,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     alignItems: "center",
   },
-  menuButtonText: {
-    fontSize: 16,
-  },
-  camerasSection: {
-    marginTop: 8,
-    marginBottom: 12,
-  },
-  camerasLabel: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 8,
-  },
-  dropdownContainer: {
-    position: "relative",
-    zIndex: 1,
-  },
+  menuButtonText: { fontSize: 16 },
+  camerasSection: { marginTop: 8, marginBottom: 12 },
+  camerasLabel: { fontSize: 16, color: "#666", marginBottom: 8 },
+  dropdownContainer: { position: "relative", zIndex: 1 },
   dropdownButton: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -165,14 +159,8 @@ const styles = StyleSheet.create({
     borderColor: "#e5e5e5",
     borderRadius: 12,
   },
-  dropdownButtonText: {
-    fontSize: 16,
-    color: "#666",
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-  },
+  dropdownButtonText: { fontSize: 16, color: "#666" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0, 0, 0, 0.5)" },
   dropdownMenu: {
     position: "absolute",
     left: 20,
@@ -193,15 +181,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#f5f5f5",
   },
-  dropdownItemText: {
-    fontSize: 16,
-    color: "#666",
-  },
+  dropdownItemText: { fontSize: 16, color: "#666" },
   cameraView: {
     flex: 1,
     borderRadius: 12,
     overflow: "hidden",
     marginBottom: 16,
+    backgroundColor: "#000",
   },
   cameraImage: {
     width: "100%",
@@ -213,15 +199,8 @@ const styles = StyleSheet.create({
     borderTopColor: "#e5e5e5",
     paddingVertical: 16,
   },
-  navButton: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  navButtonText: {
-    fontSize: 12,
-    marginTop: 4,
-  },
-})
+  navButton: { flex: 1, alignItems: "center", justifyContent: "center" },
+  navButtonText: { fontSize: 12, marginTop: 4 },
+});
 
 export default HomeScreen;

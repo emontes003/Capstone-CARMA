@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
@@ -13,6 +13,9 @@ import StorageScreen from "./screens/StorageScreen";
 import DashboardScreen from "./screens/DashboardScreen";
 import NotificationsScreen from "./screens/NotificationsScreen";
 import ProfileScreen from "./screens/ProfileScreen";
+
+// Import the upload function
+import { uploadTestVideo } from "./firebase/uploadTestVideo";
 
 // Define a type for your navigator's routes
 export type RootStackParamList = {
@@ -30,6 +33,12 @@ export type RootStackParamList = {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
+  useEffect(() => {
+    // Upload only if not already uploaded
+    console.log('🔥 useEffect called in App');
+    uploadTestVideo();
+  }, []);
+
   return (
     <SafeAreaProvider>
       <NavigationContainer>
@@ -43,7 +52,7 @@ export default function App() {
           <Stack.Screen 
             name="Home" 
             component={HomeScreen} 
-            options={{ animation: "slide_from_left" }}  // Example animation option
+            options={{ animation: "slide_from_left" }}
           />
           <Stack.Screen name="History" component={HistoryScreen} />
           <Stack.Screen name="Recordings" component={RecordingsScreen} />
