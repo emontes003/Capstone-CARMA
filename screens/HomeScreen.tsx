@@ -25,17 +25,42 @@ const HomeScreen = () => {
   };
 
   useEffect(() => {
-    const fetchVideoUrl = async () => {
-      try {
-        const url = await storage().ref("videos/sample-video.mp4").getDownloadURL();
-        setVideoUrl(url);
-      } catch (error) {
-        console.error("Failed to fetch video URL:", error);
+    let isMounted = true;
+  
+    const waitForVideo = async () => {
+      const maxRetries = 10;
+      let attempts = 0;
+  
+      while (attempts < maxRetries) {
+        try {
+          const url = await storage().ref("videos/sample-video.mp4").getDownloadURL();
+          if (isMounted) {
+            console.log("🎥 Video found, setting URL...");
+            setVideoUrl(url);
+          }
+          return;
+        } catch (error: any) {
+          if (error.code === 'storage/object-not-found') {
+            console.log("🔁 Video not yet uploaded, retrying...");
+            await new Promise((resolve) => setTimeout(resolve, 2000)); // wait 2s
+            attempts++;
+          } else {
+            console.error("⚠️ Unexpected error:", error);
+            return;
+          }
+        }
       }
+  
+      console.warn("❌ Gave up waiting for video upload.");
     };
-
-    fetchVideoUrl();
+  
+    waitForVideo();
+  
+    return () => {
+      isMounted = false;
+    };
   }, []);
+  
 
   return (
     <SafeAreaView style={styles.container}>
@@ -98,12 +123,14 @@ const HomeScreen = () => {
         <View style={styles.cameraView}>
           {videoUrl ? (
             <Video
-              source={{ uri: videoUrl }}
-              style={styles.cameraImage}
-              controls={true}
-              resizeMode="cover"
-              paused={false}
-            />
+            source={{ uri: videoUrl }}
+            style={styles.cameraImage}
+            controls
+            resizeMode="cover"
+            paused={false}
+            onError={(e) => console.error("❌ Video error:", e)}
+            onLoad={(e) => console.log("✅ Video loaded:", e)}
+          />          
           ) : (
             <Text>Loading video...</Text>
           )}
