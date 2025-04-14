@@ -19,47 +19,64 @@ const HomeScreen = () => {
 
   const toggleDropdown = () => setDropdownOpen(!dropdownOpen);
 
-  const selectCamera = (camera: string): void => {
+  const selectCamera = async (camera: string): Promise<void> => {
     setSelectedCamera(camera);
     setDropdownOpen(false);
+  
+    const cameraSlug = cameraToFilename(camera);
+    const cameraPath = `videos/${cameraSlug}.mp4`;
+  
+    try {
+      const url = await storage().ref(cameraPath).getDownloadURL();
+      setVideoUrl(url);
+      setIsLive(false); // Assume recorded for camera views
+      console.log(`🎥 Loaded video for ${camera}:`, url);
+    } catch (error) {
+      console.warn(`⚠️ Video for "${camera}" not found, falling back...`);
+      
+      try {
+        const fallbackUrl = await storage().ref("videos/sample-video.mp4").getDownloadURL();
+        setVideoUrl(fallbackUrl);
+        setIsLive(false);
+        console.log("📼 Loaded fallback video.");
+      } catch (fallbackError) {
+        console.error("❌ Failed to load fallback video:", fallbackError);
+      }
+    }
   };
+  
+
+  const [isLive, setIsLive] = useState<boolean | null>(null);
+
+  const cameraToFilename = (camera: string) => {
+  return camera.toLowerCase().replace(/\s+/g, "-"); // "Back Right" -> "back-right"
+};
+
 
   useEffect(() => {
-    let isMounted = true;
-  
-    const waitForVideo = async () => {
-      const maxRetries = 10;
-      let attempts = 0;
-  
-      while (attempts < maxRetries) {
+    const fetchStreamOrFallback = async () => {
+      try {
+        const liveUrl = await storage().ref('videos/live-stream.m3u8').getDownloadURL();
+        setVideoUrl(liveUrl);
+        setIsLive(true); // ✅ Mark it as live
+        console.log('📡 Live stream loaded');
+      } catch (liveError) {
+        console.warn('⚠️ Live stream not found, loading fallback...');
+      
         try {
-          const url = await storage().ref("videos/sample-video.mp4").getDownloadURL();
-          if (isMounted) {
-            console.log("🎥 Video found, setting URL...");
-            setVideoUrl(url);
-          }
-          return;
-        } catch (error: any) {
-          if (error.code === 'storage/object-not-found') {
-            console.log("🔁 Video not yet uploaded, retrying...");
-            await new Promise((resolve) => setTimeout(resolve, 2000)); // wait 2s
-            attempts++;
-          } else {
-            console.error("⚠️ Unexpected error:", error);
-            return;
-          }
+          const fallbackUrl = await storage().ref('videos/sample-video.mp4').getDownloadURL();
+          setVideoUrl(fallbackUrl);
+          setIsLive(false); // ✅ Mark it as fallback
+          console.log('📼 Fallback video loaded');
+        } catch (fallbackError) {
+          console.error('❌ Failed to load fallback video:', fallbackError);
         }
       }
-  
-      console.warn("❌ Gave up waiting for video upload.");
     };
   
-    waitForVideo();
-  
-    return () => {
-      isMounted = false;
-    };
+    fetchStreamOrFallback();
   }, []);
+  
   
 
   return (
@@ -121,6 +138,15 @@ const HomeScreen = () => {
 
         {/* Camera view (Video player) */}
         <View style={styles.cameraView}>
+          
+        {isLive !== null && (
+        <View style={styles.indicatorBadge}>
+          <Text style={styles.indicatorText}>
+            {isLive ? '🟢 LIVE' : '🎞️ RECORDED'}
+          </Text>
+        </View>
+        )}
+
           {videoUrl ? (
             <Video
             source={{ uri: videoUrl }}
@@ -228,6 +254,23 @@ const styles = StyleSheet.create({
   },
   navButton: { flex: 1, alignItems: "center", justifyContent: "center" },
   navButtonText: { fontSize: 12, marginTop: 4 },
+
+  indicatorBadge: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    backgroundColor: "#000",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    zIndex: 2,
+  },
+  indicatorText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+  
 });
 
 export default HomeScreen;
