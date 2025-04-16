@@ -7,6 +7,14 @@ import { ArrowLeft, Battery, Clock, MapPin, Play, Video, Home as HomeIcon, Bell,
 // Import your RootStackParamList type (adjust the path accordingly)
 import { RootStackParamList } from "../App"; // or from a types file if you've separated it
 
+import { WebView } from 'react-native-webview'
+import { Platform } from 'react-native'
+
+// point this at your dev machine or Pi
+const HOST = Platform.OS === 'android'
+  ? '10.0.2.2'
+  : '10.75.186.90'  // ← change to your laptop/Pi IP
+const STREAM_URL = `http://${HOST}:5000/video`
 
 const DashboardScreen = () => {
   // Type the navigation prop
@@ -26,18 +34,20 @@ const DashboardScreen = () => {
       <ScrollView>
         {/* Live camera view */}
         <View style={styles.cameraContainer}>
-          <Image
-            source={{ uri: "https://via.placeholder.com/400x200?text=Live%20Camera%20View" }}
-            style={styles.cameraImage}
-          />
-          <View style={styles.liveIndicator}>
-            <View style={styles.liveIndicatorDot} />
-            <Text style={styles.liveIndicatorText}>LIVE</Text>
-          </View>
-          <TouchableOpacity style={styles.playButton}>
-            <Play width={20} height={20} color="#000" fill="#000" />
-          </TouchableOpacity>
-        </View>
+  <WebView
+    source={{ uri: STREAM_URL }}
+    style={styles.cameraImage}
+    javaScriptEnabled
+    domStorageEnabled
+    allowsInlineMediaPlayback
+    scalesPageToFit
+  />
+  <View style={styles.liveIndicator}>
+    <View style={styles.liveIndicatorDot} />
+    <Text style={styles.liveIndicatorText}>LIVE</Text>
+  </View>
+</View>
+
 
         {/* Status cards */}
         <View style={styles.cardsContainer}>

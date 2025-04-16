@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -21,63 +21,68 @@ import {
   User,
 } from "react-native-feather";
 import { RootStackParamList } from "../App"; // Adjust this path if needed
+import firestore from '@react-native-firebase/firestore';
+
 
 // Define the type for a notification item
 interface Notification {
   id: string;
-  type: string;
+  type: string;   
   title: string;
-  description: string;
+  body: string;
   time: string;
   icon: JSX.Element;
 }
 
 const NotificationsScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [filter, setFilter] = useState<'all' | 'alert'>('all');
+  const [allNotifications, setAllNotifications] = useState<Notification[]>([]);
+  const filteredNotifications = filter === 'all'
+  ? allNotifications
+  : allNotifications.filter(n => n.type === filter);
 
-  // Sample notifications data typed as Notification[]
-  const notifications: Notification[] = [
-    {
-      id: "1",
-      type: "alert",
-      title: "Sudden Braking Detected",
-      description: "A sudden braking event was detected on Highway 101.",
-      time: "10:23 AM",
-      icon: <AlertTriangle width={20} height={20} color="#EF4444" />,
-    },
-    {
-      id: "2",
-      type: "info",
-      title: "Recording Started",
-      description: "Your dashcam has started recording.",
-      time: "9:45 AM",
-      icon: <Info width={20} height={20} color="#3B82F6" />,
-    },
-    {
-      id: "3",
-      type: "system",
-      title: "Storage Almost Full",
-      description: "Your storage is 90% full. Consider clearing some space.",
-      time: "Yesterday",
-      icon: <Shield width={20} height={20} color="#F97316" />,
-    },
-    {
-      id: "4",
-      type: "alert",
-      title: "Possible Collision Detected",
-      description: "A possible collision was detected. Footage has been saved.",
-      time: "Yesterday",
-      icon: <AlertTriangle width={20} height={20} color="#EF4444" />,
-    },
-    {
-      id: "5",
-      type: "system",
-      title: "App Updated",
-      description: "CARMA has been updated to version 2.5.1",
-      time: "Mar 3",
-      icon: <Info width={20} height={20} color="#22C55E" />,
-    },
-  ];
+  // Firestore live listener
+  useEffect(() => {
+    const unsubscribe = firestore()
+      .collection('notifications')
+      .orderBy('timestamp', 'desc')
+      .onSnapshot(snapshot => {
+        const fetched: Notification[] = snapshot.docs.map(doc => {
+          const data = doc.data();
+
+          return {
+            id: doc.id,
+            type: data.type || "alert",
+            title: data.title || "No Title",
+            body: data.body || "No description",
+            time: data.timestamp?.toDate()?.toLocaleTimeString() || "N/A",
+            icon: getIconByType(data.type),
+          };
+        });
+
+        setNotifications(fetched);
+        setAllNotifications(fetched);
+      });
+      
+    return () => unsubscribe();
+  }, 
+  []);
+
+  // ✅ 📍 Put the helper function here
+  const getIconByType = (type: string) => {
+    switch (type) {
+      case "alert":
+        return <AlertTriangle width={20} height={20} color="#EF4444" />;
+      case "info":
+        return <Info width={20} height={20} color="#3B82F6" />;
+      case "system":
+        return <Shield width={20} height={20} color="#F97316" />;
+      default:
+        return <Bell width={20} height={20} color="#000" />;
+    }
+  };
 
   // Type the parameter for renderNotificationItem using ListRenderItemInfo
   const renderNotificationItem = ({ item }: ListRenderItemInfo<Notification>) => (
@@ -88,7 +93,7 @@ const NotificationsScreen = () => {
           <Text style={styles.notificationTitle}>{item.title}</Text>
           <Text style={styles.notificationTime}>{item.time}</Text>
         </View>
-        <Text style={styles.notificationDescription}>{item.description}</Text>
+        <Text style={styles.notificationDescription}>{item.body}</Text>
       </View>
     </View>
   );
@@ -108,28 +113,43 @@ const NotificationsScreen = () => {
 
       {/* Notification filters */}
       <View style={styles.filterContainer}>
-        <TouchableOpacity style={styles.filterButtonActive}>
-          <Text style={styles.filterButtonTextActive}>All</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton}>
-          <Text style={styles.filterButtonText}>Alerts</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton}>
-          <Text style={styles.filterButtonText}>System</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.filterButton}>
-          <Text style={styles.filterButtonText}>Info</Text>
-        </TouchableOpacity>
-      </View>
+  <TouchableOpacity 
+    style={filter === 'all' ? styles.filterButtonActive : styles.filterButton}
+    onPress={() => setFilter('all')}
+  >
+    <Text style={filter === 'all' ? styles.filterButtonTextActive : styles.filterButtonText}>
+      All
+    </Text>
+  </TouchableOpacity>
+
+  <TouchableOpacity 
+    style={filter === 'alert' ? styles.filterButtonActive : styles.filterButton}
+    onPress={() => setFilter('alert')}
+  >
+    <Text style={filter === 'alert' ? styles.filterButtonTextActive : styles.filterButtonText}>
+      Alerts
+    </Text>
+  </TouchableOpacity>
+
+  {/* Optional: Keep these for now but they don't do anything yet */}
+  <TouchableOpacity style={styles.filterButton}>
+    <Text style={styles.filterButtonText}>System</Text>
+  </TouchableOpacity>
+  <TouchableOpacity style={styles.filterButton}>
+    <Text style={styles.filterButtonText}>Info</Text>
+  </TouchableOpacity>
+</View>
+
 
       {/* Notifications list */}
       {notifications.length > 0 ? (
-        <FlatList
-          data={notifications}
-          renderItem={renderNotificationItem}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.notificationsList}
-        />
+       <FlatList
+       data={filteredNotifications}
+       renderItem={renderNotificationItem}
+       keyExtractor={(item) => item.id}
+       contentContainerStyle={styles.notificationsList}
+     />
+     
       ) : (
         <View style={styles.emptyState}>
           <View style={styles.emptyStateIcon}>
