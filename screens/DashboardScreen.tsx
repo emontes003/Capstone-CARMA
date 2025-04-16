@@ -13,7 +13,7 @@ import { Platform } from 'react-native'
 // point this at your dev machine or Pi
 const HOST = Platform.OS === 'android'
   ? '10.0.2.2'
-  : '10.75.186.90'  // ← change to your laptop/Pi IP
+  : ''  // ← change to your laptop/Pi IP
 const STREAM_URL = `http://${HOST}:5000/video`
 
 const DashboardScreen = () => {
