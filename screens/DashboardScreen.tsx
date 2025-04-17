@@ -31,35 +31,51 @@ const DashboardScreen = () => {
   };
 
   useEffect(() => {
-    const fetchStreamOrFallback = async () => {
+    let intervalId: NodeJS.Timeout;
+  
+    const checkLiveStream = async () => {
       try {
-        const liveUrl = await storage().ref("videos/live-stream.m3u8").getDownloadURL();
-        setVideoUrl(liveUrl);
-        setIsLive(true);
-        console.log("📡 Live stream loaded");
+        const response = await fetch(STREAM_URL, { method: 'HEAD' });
+  
+        if (response.ok) {
+          if (!isLive || videoUrl !== STREAM_URL) {
+            setVideoUrl(STREAM_URL);
+            setIsLive(true);
+            console.log("📡 Dashboard: Switched to LIVE stream");
+          }
+        } else {
+          throw new Error("Stream unreachable");
+        }
       } catch {
         try {
           const fallbackUrl = await storage().ref("videos/sample-video.mp4").getDownloadURL();
-          setVideoUrl(fallbackUrl);
-          setIsLive(false);
-          console.log("📼 Fallback video loaded");
+          if (isLive || videoUrl !== fallbackUrl) {
+            setVideoUrl(fallbackUrl);
+            setIsLive(false);
+            console.log("📼 Dashboard: Switched to fallback video");
+          }
         } catch (err) {
-          console.error("❌ Video load failed:", err);
+          console.error("❌ Dashboard: Fallback video load failed:", err);
         }
       }
     };
-
-    fetchStreamOrFallback();
-
+  
+    checkLiveStream(); // Initial run
+    intervalId = setInterval(checkLiveStream, 5000); // Repeat every 5s
+  
     const dashboardRef = database().ref("/dashboard");
     const unsubscribe = dashboardRef.on("value", (snapshot) => {
       const data = snapshot.val();
       setDashboardData(data);
       console.log("📊 Dashboard data updated:", data);
     });
-
-    return () => dashboardRef.off("value", unsubscribe);
-  }, []);
+  
+    return () => {
+      clearInterval(intervalId);
+      dashboardRef.off("value", unsubscribe);
+    };
+  }, [isLive, videoUrl]);
+  
 
   return (
     <SafeAreaView style={styles.container}>
@@ -73,39 +89,47 @@ const DashboardScreen = () => {
 
       <ScrollView>
         {/* Video Feed */}
-        <View style={styles.cameraContainer}>
-          {isLive ? (
-            <WebView
-              source={{ uri: STREAM_URL }}
-              style={styles.cameraImage}
-              javaScriptEnabled
-              domStorageEnabled
-              allowsInlineMediaPlayback
-              scalesPageToFit
-            />
-          ) : videoUrl ? (
-            <Video
-              source={{ uri: videoUrl }}
-              style={styles.cameraImage}
-              controls
-              resizeMode="cover"
-              paused={false}
-            />
-          ) : (
-            <Text style={{ textAlign: "center", marginTop: 16 }}>Loading video...</Text>
-          )}
-
+                {/* Camera View (Video player) */}
+        <View style={styles.cameraView}>
           {isLive !== null && (
-            <View style={styles.liveIndicator}>
-              <View style={styles.liveIndicatorDot} />
-              <Text style={styles.liveIndicatorText}>{isLive ? "LIVE" : "RECORDED"}</Text>
+            <View style={styles.indicatorBadge}>
+              <Text style={styles.indicatorText}>
+                {isLive ? '🟢 LIVE' : '🎞️ RECORDED'}
+              </Text>
             </View>
           )}
 
-          <TouchableOpacity style={styles.playButton}>
-            <Play width={20} height={20} color="#000" fill="#000" />
-          </TouchableOpacity>
+          {videoUrl ? (
+            isLive ? (
+              <WebView
+                source={{ uri: STREAM_URL }}
+                style={styles.cameraImage}
+                javaScriptEnabled
+                domStorageEnabled
+                allowsInlineMediaPlayback
+                mediaPlaybackRequiresUserAction={false}
+                originWhitelist={['*']}
+                onError={(syntheticEvent) => {
+                  const { nativeEvent } = syntheticEvent;
+                  console.warn('❌ WebView error:', nativeEvent);
+                }}
+              />
+            ) : (
+              <Video
+                source={{ uri: videoUrl }}
+                style={styles.cameraImage}
+                controls
+                resizeMode="cover"
+                paused={false}
+                onError={(e) => console.error("❌ Video error:", e)}
+                onLoad={(e) => console.log("✅ Video loaded:", e)}
+              />
+            )
+          ) : (
+            <Text style={{ textAlign: "center", marginTop: 16 }}>🔄 Loading video...</Text>
+          )}
         </View>
+
 
         {/* Status Cards */}
         <View style={styles.cardsContainer}>
@@ -166,6 +190,30 @@ const DashboardScreen = () => {
 };
 
 const styles = StyleSheet.create({
+
+  cameraView: {
+    margin: 16,
+    borderRadius: 12,
+    overflow: "hidden",
+    backgroundColor: "#000",
+    position: "relative",
+  },
+  indicatorBadge: {
+    position: "absolute",
+    top: 10,
+    left: 10,
+    backgroundColor: "#000",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    zIndex: 2,
+  },
+  indicatorText: {
+    color: "#fff",
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+
   container: { 
     flex: 1, 
     backgroundColor: "#fff" 

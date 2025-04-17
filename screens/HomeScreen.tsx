@@ -1,13 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, Modal, FlatList } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Modal, FlatList, Platform,} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useNavigation, NavigationProp } from "@react-navigation/native";
 import { ChevronDown, Home as HomeIcon, Bell, User } from "react-native-feather";
 import { RootStackParamList } from "../App";
 import Video from "react-native-video";
 import storage from "@react-native-firebase/storage";
+
+import { WebView } from "react-native-webview";
+
+const HOST = Platform.OS === "android" ? "10.0.2.2" : "192.168.1.123";
+const STREAM_URL = `http://${HOST}:5000/video`;
 
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
@@ -53,29 +58,44 @@ const HomeScreen = () => {
 };
 
 
-  useEffect(() => {
-    const fetchStreamOrFallback = async () => {
-      try {
-        const liveUrl = await storage().ref('videos/live-stream.m3u8').getDownloadURL();
-        setVideoUrl(liveUrl);
-        setIsLive(true); // ✅ Mark it as live
-        console.log('📡 Live stream loaded');
-      } catch (liveError) {
-        console.warn('⚠️ Live stream not found, loading fallback...');
-      
-        try {
-          const fallbackUrl = await storage().ref('videos/sample-video.mp4').getDownloadURL();
-          setVideoUrl(fallbackUrl);
-          setIsLive(false); // ✅ Mark it as fallback
-          console.log('📼 Fallback video loaded');
-        } catch (fallbackError) {
-          console.error('❌ Failed to load fallback video:', fallbackError);
+useEffect(() => {
+  let intervalId: NodeJS.Timeout;
+
+  const checkLiveStream = async () => {
+    try {
+      const response = await fetch(STREAM_URL, { method: 'HEAD' });
+
+      if (response.ok) {
+        if (!isLive || videoUrl !== STREAM_URL) {
+          setVideoUrl(STREAM_URL);
+          setIsLive(true);
+          console.log("📡 Switched to LIVE stream");
         }
+      } else {
+        throw new Error("Live stream unreachable");
       }
-    };
-  
-    fetchStreamOrFallback();
-  }, []);
+    } catch {
+      // fallback to Firebase Storage
+      try {
+        const fallbackUrl = await storage().ref('videos/sample-video.mp4').getDownloadURL();
+        if (isLive || videoUrl !== fallbackUrl) {
+          setVideoUrl(fallbackUrl);
+          setIsLive(false);
+          console.log("📼 Switched to fallback video");
+        }
+      } catch (err) {
+        console.error("❌ Could not load fallback video:", err);
+      }
+    }
+  };
+
+  checkLiveStream(); // Run once
+  intervalId = setInterval(checkLiveStream, 5000); // Check every 5 seconds
+
+  return () => clearInterval(intervalId);
+}, [isLive, videoUrl]);
+
+
   
   
 
@@ -146,20 +166,36 @@ const HomeScreen = () => {
           </Text>
         </View>
         )}
-
           {videoUrl ? (
+            isLive ? (
+            <WebView
+              source={{ uri: STREAM_URL }}
+              style={styles.cameraImage}
+              javaScriptEnabled
+              domStorageEnabled
+              allowsInlineMediaPlayback
+              mediaPlaybackRequiresUserAction={false}
+              originWhitelist={['*']}
+              onError={(syntheticEvent) => {
+                const { nativeEvent } = syntheticEvent;
+                console.warn('❌ WebView error:', nativeEvent);
+              }}
+            />
+            ) : (
             <Video
-            source={{ uri: videoUrl }}
-            style={styles.cameraImage}
-            controls
-            resizeMode="cover"
-            paused={false}
-            onError={(e) => console.error("❌ Video error:", e)}
-            onLoad={(e) => console.log("✅ Video loaded:", e)}
-          />          
-          ) : (
-            <Text>Loading video...</Text>
-          )}
+              source={{ uri: videoUrl }}
+              style={styles.cameraImage}
+              controls
+              resizeMode="cover"
+              paused={false}
+              onError={(e) => console.error("❌ Video error:", e)}
+              onLoad={(e) => console.log("✅ Video loaded:", e)}
+            />
+            )
+            ) : (
+            <Text style={{ textAlign: "center", marginTop: 16 }}>🔄 Loading video...</Text>
+            )}
+
         </View>
       </View>
 
